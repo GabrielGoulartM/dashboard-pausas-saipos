@@ -12,15 +12,13 @@ def check_password():
     """Retorna True se o usuário digitou a senha correta"""
     
     def password_entered():
-        # Define senha padrão
-        senha_correta = "suporte2024"  # ⚠️ MUDE ISSO!
+        senha_correta = "suporte2024"
         
-        # No Streamlit Cloud, tenta usar secrets
         try:
             if hasattr(st, 'secrets') and "auth_password" in st.secrets:
                 senha_correta = st.secrets["auth_password"]
         except:
-            pass  # Ignora se não tiver secrets configurado
+            pass
         
         if st.session_state["password"] == senha_correta:
             st.session_state["password_correct"] = True
@@ -28,12 +26,12 @@ def check_password():
         else:
             st.session_state["password_correct"] = False
 
-    # Se já autenticou, retorna True
     if st.session_state.get("password_correct", False):
         return True
 
-    # Mostra tela de login
-    st.markdown("## 🔐 Acesso Restrito - Suporte Saipos")
+    # Tela de login personalizada Saipos
+    st.markdown("## 🔐 Dashboard de Pausas - Saipos")
+    st.markdown("#### *Acesso exclusivo para analistas de suporte*")
     st.markdown("---")
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -49,7 +47,7 @@ def check_password():
         if st.session_state.get("password_correct") == False:
             st.error("❌ Senha incorreta. Tente novamente.")
         
-        st.caption("💡 Entre em contato com TI se não tiver acesso.")
+        st.caption("💡 Entre em contato com Gabriel Goulart se não tiver acesso.")
     
     return False
 
@@ -147,7 +145,8 @@ def fetch_row_data(sheet_id, sheet_tab, row_value):
 st.set_page_config(
     page_title="Dashboard de Pausas - Saipos",
     page_icon="⏱️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ========== VERIFICAÇÃO DE AUTENTICAÇÃO ==========
@@ -156,14 +155,24 @@ if not check_password():
 
 # ========== DASHBOARD ==========
 
-st.title("⏱️ Dashboard de Pausas")
-st.caption("Monitoramento de Intervalos e Pausas - Saipos")
+# Header personalizado Saipos
+st.markdown("""
+    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
+        <h1 style='color: #1f77b4; margin-bottom: 0.5rem;'>⏱️ Dashboard de Pausas</h1>
+        <p style='font-size: 1.2rem; color: #666; margin-bottom: 0.3rem;'>
+            <strong>Saipos</strong> - Suporte ao Cliente
+        </p>
+        <p style='font-size: 0.9rem; color: #888; font-style: italic;'>
+            De analista, para analista ❤️
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
 sheet_id = "1bwrJmasPZUz5F8qsITo2RhFYTHb8e2OnSHlCWLSDOIs"
 sheet_tab = "pagina"
 
 with st.sidebar:
-    st.subheader("⚙️ Configurações")
+    st.markdown("### ⚙️ Configurações")
     
     try:
         agents = get_all_agents(sheet_id, sheet_tab)
@@ -189,11 +198,39 @@ with st.sidebar:
     btn = st.button("🔄 Recarregar Dados", type="primary", use_container_width=True)
     
     st.divider()
+    
+    # Botão de sugestões
+    st.markdown("### 💡 Sugestões")
+    st.markdown("Tem alguma ideia para melhorar o dashboard?")
+    
+    # Link para Google Forms
+    FORMS_URL = "https://forms.gle/ojyXj3iT9ypJu5zp9"
+    
+    if st.button("📝 Enviar Sugestão", use_container_width=True):
+        st.markdown(f"[Clique aqui para abrir o formulário]({FORMS_URL})")
+        st.balloons()
+    
+    st.caption("Sua opinião é muito importante! 🙏")
+    
+    st.divider()
+    
     if st.button("🚪 Sair", use_container_width=True):
         st.session_state["password_correct"] = False
         st.rerun()
     
     st.caption("💡 Dados atualizados automaticamente a cada 6 horas")
+    
+    # Footer da sidebar
+    st.divider()
+    st.markdown("""
+        <div style='text-align: center; font-size: 0.8rem; color: #888;'>
+            <p>Desenvolvido com carinho ❤️</p>
+            <p>para todos os analistas do suporte</p>
+            <p style='margin-top: 0.5rem;'>
+                <strong>Saipos</strong> | v1.0
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 last_run = st.session_state.get("last_run", 0)
 run_now = btn or (auto_refresh and time.time() - last_run > 21600)
@@ -309,3 +346,16 @@ except Exception as e:
         st.info("💡 Certifique-se de que o arquivo `service_account.json` está na mesma pasta do app.")
     elif "não encontrada" in str(e):
         st.info(f"💡 Verifique se o nome '{selected_agent}' está correto na planilha.")
+
+# Footer principal
+st.markdown("---")
+st.markdown("""
+    <div style='text-align: center; padding: 2rem 0 1rem 0; color: #888;'>
+        <p style='font-size: 0.9rem;'>
+            Dashboard desenvolvido com ❤️ por <strong>Gabriel Goulart</strong>
+        </p>
+        <p style='font-size: 0.8rem; margin-top: 0.5rem;'>
+            <strong>Saipos</strong> - Transformando dados em insights para o suporte
+        </p>
+    </div>
+""", unsafe_allow_html=True)

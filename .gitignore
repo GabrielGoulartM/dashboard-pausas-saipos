@@ -2,4 +2,8 @@ service_account.json
 *.json
 !requirements.json
 .venv/
+venv/
 __pycache__/
+.streamlit/
+*.pyc
+.DS_Store
