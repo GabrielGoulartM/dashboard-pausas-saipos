@@ -1,0 +1,5 @@
+service_account.json
+*.json
+!requirements.json
+.venv/
+__pycache__/
