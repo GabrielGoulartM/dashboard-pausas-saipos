@@ -12,7 +12,7 @@ def check_password():
     """Retorna True se o usuário digitou a senha correta"""
     
     def password_entered():
-        senha_correta = "suporte2024"
+        senha_correta = "SuperSenha"  # ← SENHA ALTERADA!
         
         try:
             if hasattr(st, 'secrets') and "auth_password" in st.secrets:
@@ -89,7 +89,7 @@ def detect_time(val):
                 return f"{h:02d}:{mi:02d}"
     return None
 
-@st.cache_data(ttl=21600)
+@st.cache_data(ttl=3600)  # 1 HORA
 def get_all_agents(sheet_id, sheet_tab):
     service = get_sheets_service_service_account()
     rng = f"{sheet_tab}!A:A"
@@ -103,7 +103,7 @@ def get_all_agents(sheet_id, sheet_tab):
                 agents.append(name)
     return sorted(agents)
 
-@st.cache_data(ttl=21600)
+@st.cache_data(ttl=3600)  # 1 HORA
 def fetch_row_data(sheet_id, sheet_tab, row_value):
     service = get_sheets_service_service_account()
     rng = f"{sheet_tab}!A:M"
@@ -194,7 +194,7 @@ with st.sidebar:
     
     st.divider()
     
-    auto_refresh = st.checkbox("🔄 Auto-refresh (6 horas)", value=False)
+    auto_refresh = st.checkbox("🔄 Auto-refresh (1 hora)", value=False)
     btn = st.button("🔄 Recarregar Dados", type="primary", use_container_width=True)
     
     st.divider()
@@ -203,7 +203,6 @@ with st.sidebar:
     st.markdown("### 💡 Sugestões")
     st.markdown("Tem alguma ideia para melhorar o dashboard?")
     
-    # Link para Google Forms
     FORMS_URL = "https://forms.gle/ojyXj3iT9ypJu5zp9"
     
     if st.button("📝 Enviar Sugestão", use_container_width=True):
@@ -218,7 +217,7 @@ with st.sidebar:
         st.session_state["password_correct"] = False
         st.rerun()
     
-    st.caption("💡 Dados atualizados automaticamente a cada 6 horas")
+    st.caption("💡 Dados atualizados automaticamente a cada hora")
     
     # Footer da sidebar
     st.divider()
@@ -232,12 +231,29 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-last_run = st.session_state.get("last_run", 0)
-run_now = btn or (auto_refresh and time.time() - last_run > 21600)
+# ========== LÓGICA DO BOTÃO RECARREGAR ==========
+# Esta parte é MUITO IMPORTANTE!
+
+last_run = st.session_state.get("last_run", 0)  # Pega timestamp da última execução
+
+# Verifica SE deve recarregar:
+# 1. Se usuário clicou no botão "Recarregar Dados" (btn = True)
+# 2. OU se auto-refresh está ligado E já passou 1 hora
+run_now = btn or (auto_refresh and time.time() - last_run > 3600)
 
 if run_now:
+    # Atualiza timestamp da última execução
     st.session_state["last_run"] = time.time()
+    
+    # ← AQUI É A MÁGICA! ←
+    # Este comando LIMPA TODO O CACHE!
+    # Força o app a buscar dados NOVOS do Google Sheets
     st.cache_data.clear()
+    
+    # Resultado: Próxima execução das funções com @st.cache_data
+    # vai fazer request REAL na planilha ao invés de usar dados salvos
+
+# ========== RESTO DA INTERFACE ==========
 
 try:
     data = fetch_row_data(sheet_id, sheet_tab, selected_agent)
