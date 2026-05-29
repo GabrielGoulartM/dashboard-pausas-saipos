@@ -194,7 +194,7 @@ with st.sidebar:
     
     st.divider()
     
-    auto_refresh = st.checkbox("🔄 Auto-refresh (1 hora)", value=False)
+    auto_refresh = st.checkbox("🔄 Auto-refresh (1 hora)", value=True)
     btn = st.button("🔄 Recarregar Dados", type="primary", use_container_width=True)
     
     st.divider()
