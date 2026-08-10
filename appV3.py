@@ -87,8 +87,11 @@ def format_duration(minutes):
     return f"{h}h{m:02d}"
 
 def get_current_time_str():
-    now = datetime.now()
+    import pytz
+    brasilia = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(brasilia)  # ← Força Brasília!
     return f"{now.hour:02d}:{now.minute:02d}"
+
 
 def find_next_interval(intervals_df, current_time_str):
     current_mins = time_to_minutes(current_time_str)
