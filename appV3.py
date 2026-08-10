@@ -19,9 +19,27 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 # ============================================================
 
 def get_sheets_service():
-    creds = service_account.Credentials.from_service_account_file(
-        "service_account.json", scopes=SCOPES
-    )
+    try:
+        # Tenta ler do Streamlit Secrets (Streamlit Cloud)
+        if hasattr(st, 'secrets') and "service_account" in st.secrets:
+            creds = service_account.Credentials.from_service_account_info(
+                st.secrets["service_account"],
+                scopes=SCOPES
+            )
+        else:
+            # Fallback para arquivo local (Render ou desenvolvimento)
+            creds = service_account.Credentials.from_service_account_file(
+                "service_account.json",
+                scopes=SCOPES
+            )
+    except Exception as e:
+        # Se falhar, tenta arquivo local
+        creds = service_account.Credentials.from_service_account_file(
+            "service_account.json",
+            scopes=SCOPES
+        )
+    return build("sheets", "v4", credentials=creds)
+
     return build("sheets", "v4", credentials=creds)
 
 def detect_time(val):
