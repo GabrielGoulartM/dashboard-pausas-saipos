@@ -158,7 +158,7 @@ def fetch_row(row_value):
     header = values[0]
     target = str(row_value).strip().lower()
     row = None
-    for r in values[1:]:
+    for r in values:
         val = (r[0].strip().lower() if len(r) > 0 and r[0] else "")
         if val == target:
             row = r
@@ -235,7 +235,7 @@ def fetch_all_analysts():
     if not values:
         return pd.DataFrame()
     analysts_data = []
-    for r in values[1:]:
+    for r in values:
         if len(r) > 0 and r[0].strip():
             name = r[0].strip()
             col_map = {"F":5, "H":7, "K":10}
