@@ -143,7 +143,7 @@ def fetch_all_names():
     ).execute().get("values", [])
     if not values or len(values) < 2:
         return []
-    names = [row[0].strip() for row in values[1:] if row and row[0].strip()]
+    names = [row[0].strip() for row in values[0:] if row and row[0].strip()]
     return sorted(set(names))
 
 @st.cache_data(ttl=60)
