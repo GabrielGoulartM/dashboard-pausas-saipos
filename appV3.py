@@ -14,6 +14,13 @@ SHEET_TAB = "pagina"  # ← Nome da aba
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
+# Analistas que não devem mais aparecer em nenhuma lista (ex: desligados)
+ANALISTAS_EXCLUIDOS = ["Carolina Bassani Duarte"]
+
+def is_excluido(nome):
+    nome_norm = str(nome).strip().lower()
+    return any(nome_norm == excl.strip().lower() for excl in ANALISTAS_EXCLUIDOS)
+
 # ============================================================
 # FUNÇÕES
 # ============================================================
@@ -157,7 +164,7 @@ def fetch_all_names():
     ).execute().get("values", [])
     if not values or len(values) < 2:
         return []
-    names = [row[0].strip() for row in values[0:] if row and row[0].strip()]
+    names = [row[0].strip() for row in values[0:] if row and row[0].strip() and not is_excluido(row[0])]
     return sorted(set(names))
 
 @st.cache_data(ttl=60)
@@ -252,7 +259,7 @@ def fetch_all_analysts():
     
     analysts_data = []
     for r in values:
-        if len(r) > 0 and r[0].strip():
+        if len(r) > 0 and r[0].strip() and not is_excluido(r[0]):
             name = r[0].strip()
             
             # Lê a coluna B (fila/papel)
@@ -687,27 +694,27 @@ try:
                     )
 
                     st.markdown("---")
+                    st.caption("Clique em um horário para ver quem contatar.")
 
                     for horario in horarios_unicos:
                         agentes_neste_horario = swap_view[swap_view["Horário"] == horario].sort_values("Nome")
                         eh_meu_horario = (horario == meu_almoco)
-                        cor_borda = "#ff9800" if eh_meu_horario else "#4caf50"
-                        etiqueta_extra = " · também é o seu horário" if eh_meu_horario else ""
+                        marcador = "🟠" if eh_meu_horario else "🟢"
+                        etiqueta_extra = " (também é o seu horário)" if eh_meu_horario else ""
+                        qtd = len(agentes_neste_horario)
+                        titulo_bloco = f"{marcador} {horario} — {qtd} pessoa{'s' if qtd != 1 else ''}{etiqueta_extra}"
 
-                        contatos_html = ""
-                        for _, agente in agentes_neste_horario.iterrows():
-                            contatos_html += f"""
-                            <span style="display:inline-block; margin: 0.2rem 0.4rem 0.2rem 0; padding: 0.3rem 0.7rem; border-radius: 1rem; border: 1px solid rgba(128,128,128,0.4); background-color: rgba(128,128,128,0.12); font-size: 0.9rem;">
-                                {agente['Nome']} <span style="opacity:0.65;">({agente['Fila']})</span>
-                            </span>
-                            """
-
-                        st.markdown(f"""
-                        <div style="padding: 0.8rem 1rem; border-left: 4px solid {cor_borda}; background: rgba(128,128,128,0.08); border-radius: 0.4rem; margin-bottom: 0.6rem;">
-                            <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.4rem;">🕐 {horario}{etiqueta_extra}</div>
-                            <div style="opacity: 0.9;">Contatar: {contatos_html}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        with st.expander(titulo_bloco):
+                            badges = []
+                            for _, agente in agentes_neste_horario.iterrows():
+                                badges.append(
+                                    '<span style="display:inline-block; margin:0.2rem 0.4rem 0.2rem 0; padding:0.3rem 0.7rem; '
+                                    'border-radius:1rem; border:1px solid rgba(128,128,128,0.4); '
+                                    'background-color:rgba(128,128,128,0.12); font-size:0.9rem;">'
+                                    f'{agente["Nome"]} <span style="opacity:0.65;">({agente["Fila"]})</span></span>'
+                                )
+                            contatos_html = "".join(badges)
+                            st.markdown(f'<div>Contatar: {contatos_html}</div>', unsafe_allow_html=True)
 
                     st.caption("🟠 = mesmo horário do seu almoço/descanso · 🟢 = horário diferente do seu")
 
