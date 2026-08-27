@@ -342,6 +342,9 @@ with st.sidebar:
         tam_equ_f = st.slider("Fonte (%)", 70, 200, 100, 10, key="equ_f")
         cols_equipe = st.slider("Cards por linha", 1, 6, 3, 1, key="equ_c")
     
+    with st.expander("🔄 Troca de Intervalo"):
+        cols_troca = st.slider("Blocos por linha", 1, 6, 4, 1, key="troca_c")
+    
     with st.expander("🎯 Cores das Filas"):
         cor_fila_ma = st.color_picker("Cor Fila MA", "#00BCD4", key="cor_ma")
         cor_fila_imp = st.color_picker("Cor Fila IMP", "#9C27B0", key="cor_imp")
@@ -696,25 +699,29 @@ try:
                     st.markdown("---")
                     st.caption("Clique em um horário para ver quem contatar.")
 
-                    for horario in horarios_unicos:
-                        agentes_neste_horario = swap_view[swap_view["Horário"] == horario].sort_values("Nome")
-                        eh_meu_horario = (horario == meu_almoco)
-                        marcador = "🟠" if eh_meu_horario else "🟢"
-                        etiqueta_extra = " (também é o seu horário)" if eh_meu_horario else ""
-                        qtd = len(agentes_neste_horario)
-                        titulo_bloco = f"{marcador} {horario} — {qtd} pessoa{'s' if qtd != 1 else ''}{etiqueta_extra}"
+                    for i in range(0, len(horarios_unicos), cols_troca):
+                        linha_horarios = horarios_unicos[i:i + cols_troca]
+                        cols = st.columns(cols_troca)
+                        for col, horario in zip(cols, linha_horarios):
+                            with col:
+                                agentes_neste_horario = swap_view[swap_view["Horário"] == horario].sort_values("Nome")
+                                eh_meu_horario = (horario == meu_almoco)
+                                marcador = "🟠" if eh_meu_horario else "🟢"
+                                etiqueta_extra = " (seu horário)" if eh_meu_horario else ""
+                                qtd = len(agentes_neste_horario)
+                                titulo_bloco = f"{marcador} {horario} — {qtd} pessoa{'s' if qtd != 1 else ''}{etiqueta_extra}"
 
-                        with st.expander(titulo_bloco):
-                            badges = []
-                            for _, agente in agentes_neste_horario.iterrows():
-                                badges.append(
-                                    '<span style="display:inline-block; margin:0.2rem 0.4rem 0.2rem 0; padding:0.3rem 0.7rem; '
-                                    'border-radius:1rem; border:1px solid rgba(128,128,128,0.4); '
-                                    'background-color:rgba(128,128,128,0.12); font-size:0.9rem;">'
-                                    f'{agente["Nome"]} <span style="opacity:0.65;">({agente["Fila"]})</span></span>'
-                                )
-                            contatos_html = "".join(badges)
-                            st.markdown(f'<div>Contatar: {contatos_html}</div>', unsafe_allow_html=True)
+                                with st.expander(titulo_bloco):
+                                    badges = []
+                                    for _, agente in agentes_neste_horario.iterrows():
+                                        badges.append(
+                                            '<span style="display:inline-block; margin:0.2rem 0.4rem 0.2rem 0; padding:0.3rem 0.7rem; '
+                                            'border-radius:1rem; border:1px solid rgba(128,128,128,0.4); '
+                                            'background-color:rgba(128,128,128,0.12); font-size:0.9rem;">'
+                                            f'{agente["Nome"]} <span style="opacity:0.65;">({agente["Fila"]})</span></span>'
+                                        )
+                                    contatos_html = "".join(badges)
+                                    st.markdown(f'<div>Contatar: {contatos_html}</div>', unsafe_allow_html=True)
 
                     st.caption("🟠 = mesmo horário do seu almoço/descanso · 🟢 = horário diferente do seu")
 
