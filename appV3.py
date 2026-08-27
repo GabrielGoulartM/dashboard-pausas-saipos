@@ -359,271 +359,356 @@ try:
     
     current_time = get_current_time_str()
     
-    st.markdown("---")
-    st.subheader("📋 Suas Pausas de Hoje")
+    tab1, tab2 = st.tabs(["📋 Painel Principal", "🔄 Troca de Intervalo"])
     
-    cols_pausas = st.columns(len(df))
-    for idx, (i, row) in enumerate(df.iterrows()):
-        with cols_pausas[idx]:
-            motivo = row.get("motivo", "Pausa")
-            horario = row.get("horario", "-")
-            tipo = row.get("tipo", "")
-            cor_card = cor_pausa_Intervalo if tipo == "Intervalo" else cor_pausa_extra
+    with tab1:
+        st.markdown("---")
+        st.subheader("📋 Suas Pausas de Hoje")
+
+        cols_pausas = st.columns(len(df))
+        for idx, (i, row) in enumerate(df.iterrows()):
+            with cols_pausas[idx]:
+                motivo = row.get("motivo", "Pausa")
+                horario = row.get("horario", "-")
+                tipo = row.get("tipo", "")
+                cor_card = cor_pausa_Intervalo if tipo == "Intervalo" else cor_pausa_extra
+                st.markdown(f"""
+                <div style="padding: 1rem; border-radius: 0.5rem; background: linear-gradient(135deg, {cor_card} 0%, {cor_card}dd 100%); color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem;">{tipo if tipo else "Pausa"}</div>
+                    <div style="font-size: 1.8rem; font-weight: bold; margin: 0.5rem 0;">{horario}</div>
+                    <div style="font-size: 1rem; opacity: 0.9;">{motivo}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        next_interval = find_next_interval(df, current_time)
+
+        if next_interval is not None:
+            next_time = next_interval["horario"]
+            next_motivo = next_interval.get("motivo", "Intervalo")
+            next_mins = time_to_minutes(next_time)
+            current_mins = time_to_minutes(current_time)
+            time_until = next_mins - current_mins
+            duration_mins = 60
+            end_time = minutes_to_time(next_mins + duration_mins)
+
+            if time_until <= 0 and time_until > -duration_mins:
+                status_text = "🔵 VOCÊ ESTÁ EM PAUSA"
+                subtitle_text = next_motivo.upper()
+                time_info = f"Termina às {end_time}"
+            elif time_until <= 5:
+                status_text = "🟢 PRÓXIMO INTERVALO"
+                subtitle_text = next_motivo.upper()
+                time_info = f"⏳ Começa em {time_until} minuto{'s' if time_until != 1 else ''}"
+            else:
+                status_text = "🕐 PRÓXIMO INTERVALO"
+                subtitle_text = next_motivo.upper()
+                time_info = f"⏳ Começa em {format_duration(time_until)}"
+
+            card_gradient = f"linear-gradient(135deg, {cor_intervalo} 0%, {cor_intervalo}dd 100%)"
+            padding = 1.5 * (tam_int_h / 100)
+            f_titulo = 2 * (tam_int_f / 100)
+            f_subtitulo = 1.5 * (tam_int_f / 100)
+            f_horario = 2.5 * (tam_int_f / 100)
+            f_duracao = 1.2 * (tam_int_f / 100)
+            f_info = 1.5 * (tam_int_f / 100)
+
             st.markdown(f"""
-            <div style="padding: 1rem; border-radius: 0.5rem; background: linear-gradient(135deg, {cor_card} 0%, {cor_card}dd 100%); color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 0.5rem;">{tipo if tipo else "Pausa"}</div>
-                <div style="font-size: 1.8rem; font-weight: bold; margin: 0.5rem 0;">{horario}</div>
-                <div style="font-size: 1rem; opacity: 0.9;">{motivo}</div>
+            <div style="padding: {padding}rem; border-radius: 1rem; background: {card_gradient}; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: {tam_int_w}%; margin: 0 auto;">
+                <h2 style="margin: 0; font-size: {f_titulo}rem;">{status_text}</h2>
+                <div style="font-size: {f_horario}rem; font-weight: bold; margin: 1rem 0;">{next_time} → {end_time}</div>
+                <div style="font-size: {f_duracao}rem; opacity: 0.9;">Duração: {format_duration(duration_mins)}</div>
+                <div style="font-size: {f_info}rem; margin-top: 1rem; font-weight: bold;">{time_info}</div>
             </div>
             """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    next_interval = find_next_interval(df, current_time)
-    
-    if next_interval is not None:
-        next_time = next_interval["horario"]
-        next_motivo = next_interval.get("motivo", "Intervalo")
-        next_mins = time_to_minutes(next_time)
-        current_mins = time_to_minutes(current_time)
-        time_until = next_mins - current_mins
-        duration_mins = 60
-        end_time = minutes_to_time(next_mins + duration_mins)
-        
-        if time_until <= 0 and time_until > -duration_mins:
-            status_text = "🔵 VOCÊ ESTÁ EM PAUSA"
-            subtitle_text = next_motivo.upper()
-            time_info = f"Termina às {end_time}"
-        elif time_until <= 5:
-            status_text = "🟢 PRÓXIMO INTERVALO"
-            subtitle_text = next_motivo.upper()
-            time_info = f"⏳ Começa em {time_until} minuto{'s' if time_until != 1 else ''}"
         else:
-            status_text = "🕐 PRÓXIMO INTERVALO"
-            subtitle_text = next_motivo.upper()
-            time_info = f"⏳ Começa em {format_duration(time_until)}"
-        
-        card_gradient = f"linear-gradient(135deg, {cor_intervalo} 0%, {cor_intervalo}dd 100%)"
-        padding = 1.5 * (tam_int_h / 100)
-        f_titulo = 2 * (tam_int_f / 100)
-        f_subtitulo = 1.5 * (tam_int_f / 100)
-        f_horario = 2.5 * (tam_int_f / 100)
-        f_duracao = 1.2 * (tam_int_f / 100)
-        f_info = 1.5 * (tam_int_f / 100)
-        
-        st.markdown(f"""
-        <div style="padding: {padding}rem; border-radius: 1rem; background: {card_gradient}; color: white; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: {tam_int_w}%; margin: 0 auto;">
-            <h2 style="margin: 0; font-size: {f_titulo}rem;">{status_text}</h2>
-            <div style="font-size: {f_horario}rem; font-weight: bold; margin: 1rem 0;">{next_time} → {end_time}</div>
-            <div style="font-size: {f_duracao}rem; opacity: 0.9;">Duração: {format_duration(duration_mins)}</div>
-            <div style="font-size: {f_info}rem; margin-top: 1rem; font-weight: bold;">{time_info}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ Nenhum intervalo futuro encontrado para hoje.")
-    
-    st.markdown("---")
-    
-    col_status, col_jornada = st.columns(2)
-    
-    with col_status:
-        st.subheader("📊 MEU STATUS")
-        status_text, status_color = calculate_status(current_time, df, shift_start, shift_end)
-        color_map = {"green": cor_status, "orange": "#ff9800", "blue": "#2196f3", "gray": "#9e9e9e"}
-        padding_sta = 1.5 * (tam_sta_h / 100)
-        st.markdown(f"""
-        <div style="padding: {padding_sta}rem; border-radius: 0.5rem; background-color: {color_map.get(status_color, '#eee')}; color: white; text-align: center; font-size: {1.5 * (tam_sta_f/100)}rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            {status_text}
-        </div>
-        <div style="text-align: center; margin-top: 1rem; font-size: {1.2 * (tam_sta_f/100)}rem; color: #666;">🕐 Agora: {current_time}</div>
-        """, unsafe_allow_html=True)
-    
-    with col_jornada:
-        st.subheader("📅 MINHA JORNADA HOJE")
-        shift_start_mins = time_to_minutes(shift_start)
-        shift_end_mins = time_to_minutes(shift_end)
-        current_mins = time_to_minutes(current_time)
-        total_mins = shift_end_mins - shift_start_mins
-        elapsed_mins = max(0, current_mins - shift_start_mins)
-        progress = min(100, (elapsed_mins / total_mins) * 100) if total_mins > 0 else 0
-        bar_length = 40
-        filled = int((progress / 100) * bar_length)
-        timeline_str = f"{shift_start} "
-        for i in range(bar_length):
-            if i == filled:
-                timeline_str += "🐿️"
-            else:
-                timeline_str += "━"
-        timeline_str += f" {shift_end}"
-        padding_jor = 1 * (tam_jor_h / 100)
-        st.markdown(f"""
-        <div style="font-family: monospace; font-size: {1 * (tam_jor_f/100)}rem; text-align: center; margin: 1rem 0; background: {cor_jornada}; padding: {padding_jor}rem; border-radius: 0.5rem;">
-            {timeline_str}<br>
-            <span style="margin-left: {progress}%; color: #2196f3; font-weight: bold;">AGORA</span>
-        </div>
-        """, unsafe_allow_html=True)
-        elapsed = current_mins - shift_start_mins if current_mins >= shift_start_mins else 0
-        remaining = shift_end_mins - current_mins if current_mins < shift_end_mins else 0
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🕘 Início", shift_start)
-        c2.metric("⏱️ Decorrido", format_duration(elapsed))
-        c3.metric("⏳ Restante", format_duration(remaining))
-    
-    st.markdown("---")
-    
-    # ============================================================
-    # NOVA SEÇÃO: STATUS DA EQUIPE AGRUPADO POR FILA
-    # ============================================================
-    with st.expander("👥 STATUS DA EQUIPE", expanded=False):
-        if not all_analysts.empty:
-            # Calcular status de cada analista
-            status_list = []
+            st.info("ℹ️ Nenhum intervalo futuro encontrado para hoje.")
+
+        st.markdown("---")
+
+        col_status, col_jornada = st.columns(2)
+
+        with col_status:
+            st.subheader("📊 MEU STATUS")
+            status_text, status_color = calculate_status(current_time, df, shift_start, shift_end)
+            color_map = {"green": cor_status, "orange": "#ff9800", "blue": "#2196f3", "gray": "#9e9e9e"}
+            padding_sta = 1.5 * (tam_sta_h / 100)
+            st.markdown(f"""
+            <div style="padding: {padding_sta}rem; border-radius: 0.5rem; background-color: {color_map.get(status_color, '#eee')}; color: white; text-align: center; font-size: {1.5 * (tam_sta_f/100)}rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                {status_text}
+            </div>
+            <div style="text-align: center; margin-top: 1rem; font-size: {1.2 * (tam_sta_f/100)}rem; color: #666;">🕐 Agora: {current_time}</div>
+            """, unsafe_allow_html=True)
+
+        with col_jornada:
+            st.subheader("📅 MINHA JORNADA HOJE")
+            shift_start_mins = time_to_minutes(shift_start)
+            shift_end_mins = time_to_minutes(shift_end)
+            current_mins = time_to_minutes(current_time)
+            total_mins = shift_end_mins - shift_start_mins
+            elapsed_mins = max(0, current_mins - shift_start_mins)
+            progress = min(100, (elapsed_mins / total_mins) * 100) if total_mins > 0 else 0
+            bar_length = 40
+            filled = int((progress / 100) * bar_length)
+            timeline_str = f"{shift_start} "
+            for i in range(bar_length):
+                if i == filled:
+                    timeline_str += "🐿️"
+                else:
+                    timeline_str += "━"
+            timeline_str += f" {shift_end}"
+            padding_jor = 1 * (tam_jor_h / 100)
+            st.markdown(f"""
+            <div style="font-family: monospace; font-size: {1 * (tam_jor_f/100)}rem; text-align: center; margin: 1rem 0; background: {cor_jornada}; padding: {padding_jor}rem; border-radius: 0.5rem;">
+                {timeline_str}<br>
+                <span style="margin-left: {progress}%; color: #2196f3; font-weight: bold;">AGORA</span>
+            </div>
+            """, unsafe_allow_html=True)
+            elapsed = current_mins - shift_start_mins if current_mins >= shift_start_mins else 0
+            remaining = shift_end_mins - current_mins if current_mins < shift_end_mins else 0
+            c1, c2, c3 = st.columns(3)
+            c1.metric("🕘 Início", shift_start)
+            c2.metric("⏱️ Decorrido", format_duration(elapsed))
+            c3.metric("⏳ Restante", format_duration(remaining))
+
+        st.markdown("---")
+
+        # ============================================================
+        # NOVA SEÇÃO: STATUS DA EQUIPE AGRUPADO POR FILA
+        # ============================================================
+        with st.expander("👥 STATUS DA EQUIPE", expanded=False):
+            if not all_analysts.empty:
+                # Calcular status de cada analista
+                status_list = []
+                for idx, analyst in all_analysts.iterrows():
+                    name = analyst["nome"]
+                    fila_grupo = analyst["fila_grupo"]
+                    intervals = analyst["intervalos"]
+                    temp_df = pd.DataFrame([{"horario": h} for h in intervals])
+                    status, color = calculate_status(current_time, temp_df, shift_start, shift_end)
+                    status_list.append({
+                        "Nome": name, 
+                        "Fila": fila_grupo,
+                        "Status": status, 
+                        "Cor": color
+                    })
+
+                status_df = pd.DataFrame(status_list)
+
+                # Métricas por fila
+                col_ma, col_imp, col_out = st.columns(3)
+                count_ma = len(status_df[status_df["Fila"] == "MA"])
+                count_imp = len(status_df[status_df["Fila"] == "IMP"])
+                count_out = len(status_df[status_df["Fila"] == "OUTROS"])
+
+                with col_ma:
+                    st.metric("🌊 MAR ABERTO", count_ma)
+                with col_imp:
+                    st.metric("🖨️ IMPRESSÃO", count_imp)
+                with col_out:
+                    st.metric("📋 OUTROS", count_out)
+
+                st.markdown("---")
+
+                # SEÇÃO MA (MAR ABERTO)
+                agents_ma = status_df[status_df["Fila"] == "MA"].sort_values("Nome")
+                if not agents_ma.empty:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(90deg, {cor_fila_ma}20 0%, transparent 100%); 
+                                border-left: 4px solid {cor_fila_ma}; 
+                                padding: 1rem; 
+                                border-radius: 0.5rem; 
+                                margin: 1rem 0;">
+                        <h3 style="margin: 0; color: {cor_fila_ma};">🌊 MAR ABERTO (MA)</h3>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Cards dos agentes MA
+                    num_agents_ma = len(agents_ma)
+                    for i in range(0, num_agents_ma, cols_equipe):
+                        cols = st.columns(cols_equipe)
+                        for j, col in enumerate(cols):
+                            if i + j < num_agents_ma:
+                                row = agents_ma.iloc[i + j]
+                                color_map_team = {
+                                    "green": cor_equipe, 
+                                    "orange": "#ff9800", 
+                                    "blue": "#2196f3", 
+                                    "gray": "#9e9e9e"
+                                }
+                                col.markdown(f"""
+                                <div style="padding: 0.8rem; 
+                                            border-radius: 0.5rem; 
+                                            background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                            color: white; 
+                                            text-align: center; 
+                                            margin: 0.3rem 0;
+                                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                    <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                # SEÇÃO IMP (IMPRESSÃO)
+                agents_imp = status_df[status_df["Fila"] == "IMP"].sort_values("Nome")
+                if not agents_imp.empty:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(90deg, {cor_fila_imp}20 0%, transparent 100%); 
+                                border-left: 4px solid {cor_fila_imp}; 
+                                padding: 1rem; 
+                                border-radius: 0.5rem; 
+                                margin: 1rem 0;">
+                        <h3 style="margin: 0; color: {cor_fila_imp};">🖨️ IMPRESSÃO (IMP)</h3>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Cards dos agentes IMP
+                    num_agents_imp = len(agents_imp)
+                    for i in range(0, num_agents_imp, cols_equipe):
+                        cols = st.columns(cols_equipe)
+                        for j, col in enumerate(cols):
+                            if i + j < num_agents_imp:
+                                row = agents_imp.iloc[i + j]
+                                color_map_team = {
+                                    "green": cor_equipe, 
+                                    "orange": "#ff9800", 
+                                    "blue": "#2196f3", 
+                                    "gray": "#9e9e9e"
+                                }
+                                col.markdown(f"""
+                                <div style="padding: 0.8rem; 
+                                            border-radius: 0.5rem; 
+                                            background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                            color: white; 
+                                            text-align: center; 
+                                            margin: 0.3rem 0;
+                                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                    <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                # SEÇÃO OUTROS (se houver)
+                agents_outros = status_df[status_df["Fila"] == "OUTROS"].sort_values("Nome")
+                if not agents_outros.empty:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(90deg, {cor_fila_outros}20 0%, transparent 100%); 
+                                border-left: 4px solid {cor_fila_outros}; 
+                                padding: 1rem; 
+                                border-radius: 0.5rem; 
+                                margin: 1rem 0;">
+                        <h3 style="margin: 0; color: {cor_fila_outros};">📋 OUTROS</h3>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Cards dos agentes OUTROS
+                    num_agents_out = len(agents_outros)
+                    for i in range(0, num_agents_out, cols_equipe):
+                        cols = st.columns(cols_equipe)
+                        for j, col in enumerate(cols):
+                            if i + j < num_agents_out:
+                                row = agents_outros.iloc[i + j]
+                                color_map_team = {
+                                    "green": cor_equipe, 
+                                    "orange": "#ff9800", 
+                                    "blue": "#2196f3", 
+                                    "gray": "#9e9e9e"
+                                }
+                                col.markdown(f"""
+                                <div style="padding: 0.8rem; 
+                                            border-radius: 0.5rem; 
+                                            background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                            color: white; 
+                                            text-align: center; 
+                                            margin: 0.3rem 0;
+                                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                    <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+    with tab2:
+        st.subheader("🔄 Troca de Intervalo")
+        st.caption("Veja quem está de intervalo em cada horário para combinar uma troca.")
+
+        if all_analysts.empty:
+            st.info("ℹ️ Nenhum dado de equipe disponível.")
+        else:
+            # Monta a lista de horários x agentes
+            swap_data = []
             for idx, analyst in all_analysts.iterrows():
-                name = analyst["nome"]
-                fila_grupo = analyst["fila_grupo"]
-                intervals = analyst["intervalos"]
-                temp_df = pd.DataFrame([{"horario": h} for h in intervals])
-                status, color = calculate_status(current_time, temp_df, shift_start, shift_end)
-                status_list.append({
-                    "Nome": name, 
-                    "Fila": fila_grupo,
-                    "Status": status, 
-                    "Cor": color
-                })
-            
-            status_df = pd.DataFrame(status_list)
-            
-            # Métricas por fila
-            col_ma, col_imp, col_out = st.columns(3)
-            count_ma = len(status_df[status_df["Fila"] == "MA"])
-            count_imp = len(status_df[status_df["Fila"] == "IMP"])
-            count_out = len(status_df[status_df["Fila"] == "OUTROS"])
-            
-            with col_ma:
-                st.metric("🌊 MAR ABERTO", count_ma)
-            with col_imp:
-                st.metric("🖨️ IMPRESSÃO", count_imp)
-            with col_out:
-                st.metric("📋 OUTROS", count_out)
-            
-            st.markdown("---")
-            
-            # SEÇÃO MA (MAR ABERTO)
-            agents_ma = status_df[status_df["Fila"] == "MA"].sort_values("Nome")
-            if not agents_ma.empty:
-                st.markdown(f"""
-                <div style="background: linear-gradient(90deg, {cor_fila_ma}20 0%, transparent 100%); 
-                            border-left: 4px solid {cor_fila_ma}; 
-                            padding: 1rem; 
-                            border-radius: 0.5rem; 
-                            margin: 1rem 0;">
-                    <h3 style="margin: 0; color: {cor_fila_ma};">🌊 MAR ABERTO (MA)</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Cards dos agentes MA
-                num_agents_ma = len(agents_ma)
-                for i in range(0, num_agents_ma, cols_equipe):
-                    cols = st.columns(cols_equipe)
-                    for j, col in enumerate(cols):
-                        if i + j < num_agents_ma:
-                            row = agents_ma.iloc[i + j]
-                            color_map_team = {
-                                "green": cor_equipe, 
-                                "orange": "#ff9800", 
-                                "blue": "#2196f3", 
-                                "gray": "#9e9e9e"
-                            }
-                            col.markdown(f"""
-                            <div style="padding: 0.8rem; 
-                                        border-radius: 0.5rem; 
-                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
-                                        color: white; 
-                                        text-align: center; 
-                                        margin: 0.3rem 0;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
-                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-            
-            # SEÇÃO IMP (IMPRESSÃO)
-            agents_imp = status_df[status_df["Fila"] == "IMP"].sort_values("Nome")
-            if not agents_imp.empty:
-                st.markdown(f"""
-                <div style="background: linear-gradient(90deg, {cor_fila_imp}20 0%, transparent 100%); 
-                            border-left: 4px solid {cor_fila_imp}; 
-                            padding: 1rem; 
-                            border-radius: 0.5rem; 
-                            margin: 1rem 0;">
-                    <h3 style="margin: 0; color: {cor_fila_imp};">🖨️ IMPRESSÃO (IMP)</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Cards dos agentes IMP
-                num_agents_imp = len(agents_imp)
-                for i in range(0, num_agents_imp, cols_equipe):
-                    cols = st.columns(cols_equipe)
-                    for j, col in enumerate(cols):
-                        if i + j < num_agents_imp:
-                            row = agents_imp.iloc[i + j]
-                            color_map_team = {
-                                "green": cor_equipe, 
-                                "orange": "#ff9800", 
-                                "blue": "#2196f3", 
-                                "gray": "#9e9e9e"
-                            }
-                            col.markdown(f"""
-                            <div style="padding: 0.8rem; 
-                                        border-radius: 0.5rem; 
-                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
-                                        color: white; 
-                                        text-align: center; 
-                                        margin: 0.3rem 0;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
-                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-            
-            # SEÇÃO OUTROS (se houver)
-            agents_outros = status_df[status_df["Fila"] == "OUTROS"].sort_values("Nome")
-            if not agents_outros.empty:
-                st.markdown(f"""
-                <div style="background: linear-gradient(90deg, {cor_fila_outros}20 0%, transparent 100%); 
-                            border-left: 4px solid {cor_fila_outros}; 
-                            padding: 1rem; 
-                            border-radius: 0.5rem; 
-                            margin: 1rem 0;">
-                    <h3 style="margin: 0; color: {cor_fila_outros};">📋 OUTROS</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Cards dos agentes OUTROS
-                num_agents_out = len(agents_outros)
-                for i in range(0, num_agents_out, cols_equipe):
-                    cols = st.columns(cols_equipe)
-                    for j, col in enumerate(cols):
-                        if i + j < num_agents_out:
-                            row = agents_outros.iloc[i + j]
-                            color_map_team = {
-                                "green": cor_equipe, 
-                                "orange": "#ff9800", 
-                                "blue": "#2196f3", 
-                                "gray": "#9e9e9e"
-                            }
-                            col.markdown(f"""
-                            <div style="padding: 0.8rem; 
-                                        border-radius: 0.5rem; 
-                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
-                                        color: white; 
-                                        text-align: center; 
-                                        margin: 0.3rem 0;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
-                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                for h in analyst["intervalos"]:
+                    swap_data.append({
+                        "Horário": h,
+                        "Nome": analyst["nome"],
+                        "Fila": analyst["fila_grupo"]
+                    })
+
+            if not swap_data:
+                st.info("ℹ️ Nenhum intervalo cadastrado para a equipe.")
+            else:
+                swap_df = pd.DataFrame(swap_data)
+                swap_df["mins"] = swap_df["Horário"].apply(time_to_minutes)
+                swap_df = swap_df.dropna(subset=["mins"]).sort_values("mins")
+
+                # Horários que já são meus (para destacar/excluir)
+                meus_horarios = set(df["horario"].dropna().tolist()) if not df.empty else set()
+
+                filtro_col, _ = st.columns([1, 2])
+                with filtro_col:
+                    filtro_fila = st.selectbox(
+                        "Filtrar por fila:",
+                        ["Todas", "MA", "IMP", "OUTROS"],
+                        key="filtro_fila_troca"
+                    )
+
+                swap_view = swap_df.copy()
+                if filtro_fila != "Todas":
+                    swap_view = swap_view[swap_view["Fila"] == filtro_fila]
+
+                # Não faz sentido me sugerir trocar comigo mesmo
+                swap_view = swap_view[swap_view["Nome"] != row_value]
+
+                if swap_view.empty:
+                    st.info("ℹ️ Nenhum horário disponível encontrado para essa fila.")
+                else:
+                    fila_cor_map = {
+                        "MA": cor_fila_ma,
+                        "IMP": cor_fila_imp,
+                        "OUTROS": cor_fila_outros
+                    }
+
+                    horarios_unicos = sorted(
+                        swap_view["Horário"].unique(),
+                        key=lambda t: time_to_minutes(t)
+                    )
+
+                    st.markdown("---")
+
+                    for horario in horarios_unicos:
+                        agentes_neste_horario = swap_view[swap_view["Horário"] == horario].sort_values("Nome")
+                        eh_meu_horario = horario in meus_horarios
+                        cor_borda = "#ff9800" if eh_meu_horario else "#4caf50"
+                        etiqueta_extra = " · também é o seu horário" if eh_meu_horario else ""
+
+                        contatos_html = ""
+                        for _, agente in agentes_neste_horario.iterrows():
+                            cor_fila_agente = fila_cor_map.get(agente["Fila"], "#607D8B")
+                            contatos_html += f"""
+                            <span style="display:inline-block; margin: 0.2rem 0.4rem 0.2rem 0; padding: 0.3rem 0.7rem; border-radius: 1rem; background-color: {cor_fila_agente}; color: white; font-size: 0.9rem;">
+                                {agente['Nome']} ({agente['Fila']})
+                            </span>
+                            """
+
+                        st.markdown(f"""
+                        <div style="padding: 0.8rem 1rem; border-left: 4px solid {cor_borda}; background: rgba(128,128,128,0.08); border-radius: 0.4rem; margin-bottom: 0.6rem;">
+                            <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.4rem;">🕐 {horario}{etiqueta_extra}</div>
+                            <div style="opacity: 0.9;">Contatar: {contatos_html}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    st.caption("🟠 = horário que coincide com um dos seus próprios intervalos · 🟢 = horário diferente do seu")
 
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")

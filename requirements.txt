@@ -1,13 +1,5 @@
-@echo off
-setlocal
-chcp 65001 >nul
-pushd "%~dp0"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0abrir-expediente.ps1"
-set "EXITCODE=%ERRORLEVEL%"
-popd
-if not "%EXITCODE%"=="0" (
-    echo.
-    echo A rotina terminou com o codigo %EXITCODE%. Consulte as mensagens acima.
-)
-pause
-exit /b %EXITCODE%
+streamlit>=1.30.0
+google-api-python-client
+google-auth
+python-dateutil
+pytz
