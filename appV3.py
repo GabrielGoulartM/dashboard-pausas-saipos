@@ -40,8 +40,6 @@ def get_sheets_service():
         )
     return build("sheets", "v4", credentials=creds)
 
-    return build("sheets", "v4", credentials=creds)
-
 def detect_time(val):
     if val is None:
         return None
@@ -89,9 +87,8 @@ def format_duration(minutes):
 def get_current_time_str():
     import pytz
     brasilia = pytz.timezone('America/Sao_Paulo')
-    now = datetime.now(brasilia)  # ← Força Brasília!
+    now = datetime.now(brasilia)
     return f"{now.hour:02d}:{now.minute:02d}"
-
 
 def find_next_interval(intervals_df, current_time_str):
     current_mins = time_to_minutes(current_time_str)
@@ -133,6 +130,23 @@ def calculate_status(current_time_str, intervals_df, shift_start="09:00", shift_
             if 0 < time_until <= 30:
                 return "🟡 Próximo intervalo", "orange"
     return "🟢 Em atendimento", "green"
+
+def normalize_fila(fila_text):
+    """Normaliza o texto da fila para MA ou IMP"""
+    if not fila_text or pd.isna(fila_text):
+        return "OUTROS"
+    
+    fila_upper = str(fila_text).strip().upper()
+    
+    # Detecta MA (Mar Aberto)
+    if "MA" in fila_upper or "MAR" in fila_upper or "ABERTO" in fila_upper:
+        return "MA"
+    
+    # Detecta IMP (Impressão)
+    if "IMP" in fila_upper or "IMPRESSÃO" in fila_upper or "IMPRESSAO" in fila_upper:
+        return "IMP"
+    
+    return "OUTROS"
 
 @st.cache_data(ttl=60)
 def fetch_all_names():
@@ -207,7 +221,7 @@ def fetch_row(row_value):
         t = detect_time(cell_horario)
         if cell_horario is not None and t:
             motivo_texto = str(cell_motivo).strip() if cell_motivo else (
-                "Intervalo Intervalo" if tipo == "Intervalo" else "Pausa"
+                "Intervalo" if tipo == "Intervalo" else "Pausa"
             )
             data.append({
                 "coluna": coluna,
@@ -227,6 +241,7 @@ def fetch_row(row_value):
 
 @st.cache_data(ttl=60)
 def fetch_all_analysts():
+    """Busca todos os analistas com suas filas (coluna B) e intervalos"""
     service = get_sheets_service()
     rng = f"{SHEET_TAB}!A:K"
     values = service.spreadsheets().values().get(
@@ -234,10 +249,16 @@ def fetch_all_analysts():
     ).execute().get("values", [])
     if not values:
         return pd.DataFrame()
+    
     analysts_data = []
     for r in values:
         if len(r) > 0 and r[0].strip():
             name = r[0].strip()
+            
+            # Lê a coluna B (fila/papel)
+            fila_raw = r[1].strip() if len(r) > 1 and r[1] else "Não definida"
+            fila_grupo = normalize_fila(fila_raw)
+            
             col_map = {"F":5, "H":7, "K":10}
             intervals = []
             for col_letter in ["F","H","K"]:
@@ -246,7 +267,14 @@ def fetch_all_analysts():
                 t = detect_time(cell)
                 if t:
                     intervals.append(t)
-            analysts_data.append({"nome": name, "intervalos": intervals})
+            
+            analysts_data.append({
+                "nome": name, 
+                "fila_raw": fila_raw,
+                "fila_grupo": fila_grupo,
+                "intervalos": intervals
+            })
+    
     return pd.DataFrame(analysts_data)
 
 # ============================================================
@@ -302,6 +330,11 @@ with st.sidebar:
         cor_equipe = st.color_picker("Cor", "#4caf50", key="cor_equ")
         tam_equ_f = st.slider("Fonte (%)", 70, 200, 100, 10, key="equ_f")
         cols_equipe = st.slider("Cards por linha", 1, 6, 3, 1, key="equ_c")
+    
+    with st.expander("🎯 Cores das Filas"):
+        cor_fila_ma = st.color_picker("Cor Fila MA", "#00BCD4", key="cor_ma")
+        cor_fila_imp = st.color_picker("Cor Fila IMP", "#9C27B0", key="cor_imp")
+        cor_fila_outros = st.color_picker("Cor Outros", "#607D8B", key="cor_out")
     
     st.divider()
     st.subheader("🔄 Atualização")
@@ -438,28 +471,159 @@ try:
     
     st.markdown("---")
     
+    # ============================================================
+    # NOVA SEÇÃO: STATUS DA EQUIPE AGRUPADO POR FILA
+    # ============================================================
     with st.expander("👥 STATUS DA EQUIPE", expanded=False):
         if not all_analysts.empty:
+            # Calcular status de cada analista
             status_list = []
             for idx, analyst in all_analysts.iterrows():
                 name = analyst["nome"]
+                fila_grupo = analyst["fila_grupo"]
                 intervals = analyst["intervalos"]
                 temp_df = pd.DataFrame([{"horario": h} for h in intervals])
                 status, color = calculate_status(current_time, temp_df, shift_start, shift_end)
-                status_list.append({"Nome": name, "Status": status, "Cor": color})
+                status_list.append({
+                    "Nome": name, 
+                    "Fila": fila_grupo,
+                    "Status": status, 
+                    "Cor": color
+                })
+            
             status_df = pd.DataFrame(status_list)
-            for i in range(0, len(status_df), cols_equipe):
-                cols = st.columns(cols_equipe)
-                for j, col in enumerate(cols):
-                    if i + j < len(status_df):
-                        row = status_df.iloc[i + j]
-                        color_map_team = {"green": cor_equipe, "orange": "#ff9800", "blue": "#2196f3", "gray": "#9e9e9e"}
-                        col.markdown(f"""
-                        <div style="padding: 0.8rem; border-radius: 0.5rem; background-color: {color_map_team.get(row['Cor'], '#eee')}; color: white; text-align: center; margin: 0.3rem 0;">
-                            <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
-                            <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+            
+            # Métricas por fila
+            col_ma, col_imp, col_out = st.columns(3)
+            count_ma = len(status_df[status_df["Fila"] == "MA"])
+            count_imp = len(status_df[status_df["Fila"] == "IMP"])
+            count_out = len(status_df[status_df["Fila"] == "OUTROS"])
+            
+            with col_ma:
+                st.metric("🌊 MAR ABERTO", count_ma)
+            with col_imp:
+                st.metric("🖨️ IMPRESSÃO", count_imp)
+            with col_out:
+                st.metric("📋 OUTROS", count_out)
+            
+            st.markdown("---")
+            
+            # SEÇÃO MA (MAR ABERTO)
+            agents_ma = status_df[status_df["Fila"] == "MA"].sort_values("Nome")
+            if not agents_ma.empty:
+                st.markdown(f"""
+                <div style="background: linear-gradient(90deg, {cor_fila_ma}20 0%, transparent 100%); 
+                            border-left: 4px solid {cor_fila_ma}; 
+                            padding: 1rem; 
+                            border-radius: 0.5rem; 
+                            margin: 1rem 0;">
+                    <h3 style="margin: 0; color: {cor_fila_ma};">🌊 MAR ABERTO (MA)</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Cards dos agentes MA
+                num_agents_ma = len(agents_ma)
+                for i in range(0, num_agents_ma, cols_equipe):
+                    cols = st.columns(cols_equipe)
+                    for j, col in enumerate(cols):
+                        if i + j < num_agents_ma:
+                            row = agents_ma.iloc[i + j]
+                            color_map_team = {
+                                "green": cor_equipe, 
+                                "orange": "#ff9800", 
+                                "blue": "#2196f3", 
+                                "gray": "#9e9e9e"
+                            }
+                            col.markdown(f"""
+                            <div style="padding: 0.8rem; 
+                                        border-radius: 0.5rem; 
+                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                        color: white; 
+                                        text-align: center; 
+                                        margin: 0.3rem 0;
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+            
+            # SEÇÃO IMP (IMPRESSÃO)
+            agents_imp = status_df[status_df["Fila"] == "IMP"].sort_values("Nome")
+            if not agents_imp.empty:
+                st.markdown(f"""
+                <div style="background: linear-gradient(90deg, {cor_fila_imp}20 0%, transparent 100%); 
+                            border-left: 4px solid {cor_fila_imp}; 
+                            padding: 1rem; 
+                            border-radius: 0.5rem; 
+                            margin: 1rem 0;">
+                    <h3 style="margin: 0; color: {cor_fila_imp};">🖨️ IMPRESSÃO (IMP)</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Cards dos agentes IMP
+                num_agents_imp = len(agents_imp)
+                for i in range(0, num_agents_imp, cols_equipe):
+                    cols = st.columns(cols_equipe)
+                    for j, col in enumerate(cols):
+                        if i + j < num_agents_imp:
+                            row = agents_imp.iloc[i + j]
+                            color_map_team = {
+                                "green": cor_equipe, 
+                                "orange": "#ff9800", 
+                                "blue": "#2196f3", 
+                                "gray": "#9e9e9e"
+                            }
+                            col.markdown(f"""
+                            <div style="padding: 0.8rem; 
+                                        border-radius: 0.5rem; 
+                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                        color: white; 
+                                        text-align: center; 
+                                        margin: 0.3rem 0;
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+            
+            # SEÇÃO OUTROS (se houver)
+            agents_outros = status_df[status_df["Fila"] == "OUTROS"].sort_values("Nome")
+            if not agents_outros.empty:
+                st.markdown(f"""
+                <div style="background: linear-gradient(90deg, {cor_fila_outros}20 0%, transparent 100%); 
+                            border-left: 4px solid {cor_fila_outros}; 
+                            padding: 1rem; 
+                            border-radius: 0.5rem; 
+                            margin: 1rem 0;">
+                    <h3 style="margin: 0; color: {cor_fila_outros};">📋 OUTROS</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Cards dos agentes OUTROS
+                num_agents_out = len(agents_outros)
+                for i in range(0, num_agents_out, cols_equipe):
+                    cols = st.columns(cols_equipe)
+                    for j, col in enumerate(cols):
+                        if i + j < num_agents_out:
+                            row = agents_outros.iloc[i + j]
+                            color_map_team = {
+                                "green": cor_equipe, 
+                                "orange": "#ff9800", 
+                                "blue": "#2196f3", 
+                                "gray": "#9e9e9e"
+                            }
+                            col.markdown(f"""
+                            <div style="padding: 0.8rem; 
+                                        border-radius: 0.5rem; 
+                                        background-color: {color_map_team.get(row['Cor'], '#eee')}; 
+                                        color: white; 
+                                        text-align: center; 
+                                        margin: 0.3rem 0;
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                <div style="font-weight: bold; font-size: {0.9 * (tam_equ_f/100)}rem;">{row['Nome']}</div>
+                                <div style="font-size: {0.8 * (tam_equ_f/100)}rem; opacity: 0.9;">{row['Status']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")
