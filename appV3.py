@@ -261,18 +261,22 @@ def fetch_all_analysts():
             
             col_map = {"F":5, "H":7, "K":10}
             intervals = []
+            intervalo_almoco = None  # Coluna F = pausa de almoço/descanso CLT (1h), única trocável
             for col_letter in ["F","H","K"]:
                 idx = col_map[col_letter]
                 cell = r[idx] if len(r) > idx else None
                 t = detect_time(cell)
                 if t:
                     intervals.append(t)
+                    if col_letter == "F":
+                        intervalo_almoco = t
             
             analysts_data.append({
                 "nome": name, 
                 "fila_raw": fila_raw,
                 "fila_grupo": fila_grupo,
-                "intervalos": intervals
+                "intervalos": intervals,
+                "intervalo_almoco": intervalo_almoco
             })
     
     return pd.DataFrame(analysts_data)
@@ -630,15 +634,16 @@ try:
 
     with tab2:
         st.subheader("🔄 Troca de Intervalo")
-        st.caption("Veja quem está de intervalo em cada horário para combinar uma troca.")
+        st.caption("Troca apenas do intervalo de almoço/descanso (1h) previsto na CLT — coluna F da planilha. Pausas excepcionais (colunas H e K) não entram na troca.")
 
         if all_analysts.empty:
             st.info("ℹ️ Nenhum dado de equipe disponível.")
         else:
-            # Monta a lista de horários x agentes
+            # Monta a lista de horários x agentes, usando SOMENTE a coluna F (almoço/descanso CLT)
             swap_data = []
             for idx, analyst in all_analysts.iterrows():
-                for h in analyst["intervalos"]:
+                h = analyst["intervalo_almoco"]
+                if h:
                     swap_data.append({
                         "Horário": h,
                         "Nome": analyst["nome"],
@@ -646,14 +651,17 @@ try:
                     })
 
             if not swap_data:
-                st.info("ℹ️ Nenhum intervalo cadastrado para a equipe.")
+                st.info("ℹ️ Nenhum horário de almoço/descanso cadastrado para a equipe.")
             else:
                 swap_df = pd.DataFrame(swap_data)
                 swap_df["mins"] = swap_df["Horário"].apply(time_to_minutes)
                 swap_df = swap_df.dropna(subset=["mins"]).sort_values("mins")
 
-                # Horários que já são meus (para destacar/excluir)
-                meus_horarios = set(df["horario"].dropna().tolist()) if not df.empty else set()
+                # Meu horário de almoço/descanso (coluna F), único elegível para troca
+                meu_almoco = None
+                if not df.empty and "tipo" in df.columns:
+                    meus_almocos = df[df["tipo"] == "Intervalo"]["horario"].dropna().tolist()
+                    meu_almoco = meus_almocos[0] if meus_almocos else None
 
                 filtro_col, _ = st.columns([1, 2])
                 with filtro_col:
@@ -673,12 +681,6 @@ try:
                 if swap_view.empty:
                     st.info("ℹ️ Nenhum horário disponível encontrado para essa fila.")
                 else:
-                    fila_cor_map = {
-                        "MA": cor_fila_ma,
-                        "IMP": cor_fila_imp,
-                        "OUTROS": cor_fila_outros
-                    }
-
                     horarios_unicos = sorted(
                         swap_view["Horário"].unique(),
                         key=lambda t: time_to_minutes(t)
@@ -688,16 +690,15 @@ try:
 
                     for horario in horarios_unicos:
                         agentes_neste_horario = swap_view[swap_view["Horário"] == horario].sort_values("Nome")
-                        eh_meu_horario = horario in meus_horarios
+                        eh_meu_horario = (horario == meu_almoco)
                         cor_borda = "#ff9800" if eh_meu_horario else "#4caf50"
                         etiqueta_extra = " · também é o seu horário" if eh_meu_horario else ""
 
                         contatos_html = ""
                         for _, agente in agentes_neste_horario.iterrows():
-                            cor_fila_agente = fila_cor_map.get(agente["Fila"], "#607D8B")
                             contatos_html += f"""
-                            <span style="display:inline-block; margin: 0.2rem 0.4rem 0.2rem 0; padding: 0.3rem 0.7rem; border-radius: 1rem; background-color: {cor_fila_agente}; color: white; font-size: 0.9rem;">
-                                {agente['Nome']} ({agente['Fila']})
+                            <span style="display:inline-block; margin: 0.2rem 0.4rem 0.2rem 0; padding: 0.3rem 0.7rem; border-radius: 1rem; border: 1px solid rgba(128,128,128,0.4); background-color: rgba(128,128,128,0.12); font-size: 0.9rem;">
+                                {agente['Nome']} <span style="opacity:0.65;">({agente['Fila']})</span>
                             </span>
                             """
 
@@ -708,7 +709,7 @@ try:
                         </div>
                         """, unsafe_allow_html=True)
 
-                    st.caption("🟠 = horário que coincide com um dos seus próprios intervalos · 🟢 = horário diferente do seu")
+                    st.caption("🟠 = mesmo horário do seu almoço/descanso · 🟢 = horário diferente do seu")
 
 except Exception as e:
     st.error(f"❌ Erro: {str(e)}")
