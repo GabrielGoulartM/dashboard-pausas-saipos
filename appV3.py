@@ -17,6 +17,25 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 # Analistas que não devem mais aparecer em nenhuma lista (ex: desligados)
 ANALISTAS_EXCLUIDOS = ["Carolina Bassani Duarte"]
 
+# ------------------------------------------------------------
+# MODO MANUTENÇÃO
+# True  = mostra só o banner e bloqueia o resto do app
+# False = app funciona normalmente
+# Também dá para ligar/desligar sem deploy, definindo no painel de
+# Secrets do Streamlit Cloud:  manutencao = true
+# ------------------------------------------------------------
+MANUTENCAO = True
+MANUTENCAO_MSG = "Caso o site esteja demorando para carregar, ou fora do ar, por favor verifique a planilha de pausas da gestão, melhorias a esse site estão a caminho 🚚"
+MANUTENCAO_PREVISAO = ""  # ex: "Previsão de retorno: hoje às 18h" (deixe vazio para ocultar)
+
+try:
+    # Se existir "manutencao" nos secrets, ele tem prioridade sobre o valor acima
+    if "manutencao" in st.secrets:
+        MANUTENCAO = bool(st.secrets["manutencao"])
+except Exception:
+    pass  # sem secrets (ex: rodando local) -> usa o valor definido acima
+
+
 def is_excluido(nome):
     nome_norm = str(nome).strip().lower()
     return any(nome_norm == excl.strip().lower() for excl in ANALISTAS_EXCLUIDOS)
@@ -297,6 +316,28 @@ st.set_page_config(
     page_icon="⏱️",
     layout="wide"
 )
+
+# ============================================================
+# BANNER DE MANUTENÇÃO
+# Fica ANTES de qualquer chamada à planilha e do sidebar:
+# com st.stop() o app não busca dados nem fica "carregando".
+# ============================================================
+if MANUTENCAO:
+    previsao_html = (
+        f'<div style="font-size: 1.1rem; margin-top: 1rem; font-weight: bold;">🕐 {MANUTENCAO_PREVISAO}</div>'
+        if MANUTENCAO_PREVISAO else ""
+    )
+    st.markdown(f"""
+    <div style="padding: 3rem 2rem; margin: 3rem auto; max-width: 700px; border-radius: 1rem;
+                background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white;
+                text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+        <div style="font-size: 4rem;">🛠️</div>
+        <h1 style="margin: 0.5rem 0; color: white;">Em manutenção</h1>
+        <div style="font-size: 1.3rem; opacity: 0.95;">{MANUTENCAO_MSG}</div>
+        {previsao_html}
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
 
 st.title("⏱️ Dashboard de Pausas - Saipos")
 st.caption("Gestão de intervalos e pausas da operação de suporte")
